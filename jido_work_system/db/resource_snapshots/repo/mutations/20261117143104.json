@@ -1,0 +1,176 @@
+{
+  "attributes": [
+    {
+      "default": "nil",
+      "size": null,
+      "type": "uuid",
+      "source": "id",
+      "references": null,
+      "allow_nil?": false,
+      "generated?": false,
+      "primary_key?": true
+    },
+    {
+      "default": "nil",
+      "size": null,
+      "type": "utc_datetime_usec",
+      "source": "inserted_at",
+      "references": null,
+      "allow_nil?": false,
+      "generated?": false,
+      "primary_key?": false
+    },
+    {
+      "default": "nil",
+      "size": null,
+      "type": "utc_datetime_usec",
+      "source": "updated_at",
+      "references": null,
+      "allow_nil?": false,
+      "generated?": false,
+      "primary_key?": false
+    },
+    {
+      "default": "nil",
+      "size": null,
+      "type": "map",
+      "source": "prior_state",
+      "references": null,
+      "allow_nil?": false,
+      "generated?": false,
+      "primary_key?": false
+    },
+    {
+      "default": "nil",
+      "size": null,
+      "type": "text",
+      "source": "action",
+      "references": null,
+      "allow_nil?": false,
+      "generated?": false,
+      "primary_key?": false
+    },
+    {
+      "default": "nil",
+      "size": null,
+      "type": "map",
+      "source": "resulting_state",
+      "references": null,
+      "allow_nil?": false,
+      "generated?": false,
+      "primary_key?": false
+    },
+    {
+      "default": "nil",
+      "size": null,
+      "type": "text",
+      "source": "receipt",
+      "references": null,
+      "allow_nil?": false,
+      "generated?": false,
+      "primary_key?": false
+    },
+    {
+      "default": "nil",
+      "size": null,
+      "type": "boolean",
+      "source": "authorized",
+      "references": null,
+      "allow_nil?": false,
+      "generated?": false,
+      "primary_key?": false
+    },
+    {
+      "default": "nil",
+      "size": null,
+      "type": "uuid",
+      "source": "task_id",
+      "references": {
+        "name": "mutations_task_id_fkey",
+        "table": "tasks",
+        "on_delete": null,
+        "multitenancy": {
+          "global": null,
+          "attribute": null,
+          "strategy": null
+        },
+        "destination_attribute": "id",
+        "primary_key?": true,
+        "deferrable": false,
+        "destination_attribute_default": null,
+        "destination_attribute_generated": null,
+        "match_tenant?": false,
+        "on_update": null
+      },
+      "allow_nil?": false,
+      "generated?": false,
+      "primary_key?": false
+    },
+    {
+      "default": "nil",
+      "size": null,
+      "type": "uuid",
+      "source": "work_execution_id",
+      "references": {
+        "name": "mutations_work_execution_id_fkey",
+        "table": "work_executions",
+        "on_delete": null,
+        "multitenancy": {
+          "global": null,
+          "attribute": null,
+          "strategy": null
+        },
+        "destination_attribute": "id",
+        "primary_key?": true,
+        "deferrable": false,
+        "destination_attribute_default": null,
+        "destination_attribute_generated": null,
+        "match_tenant?": false,
+        "on_update": null
+      },
+      "allow_nil?": false,
+      "generated?": false,
+      "primary_key?": false
+    },
+    {
+      "default": "nil",
+      "size": null,
+      "type": "uuid",
+      "source": "authority_id",
+      "references": {
+        "name": "mutations_authority_id_fkey",
+        "table": "authorities",
+        "on_delete": null,
+        "multitenancy": {
+          "global": null,
+          "attribute": null,
+          "strategy": null
+        },
+        "destination_attribute": "id",
+        "primary_key?": true,
+        "deferrable": false,
+        "destination_attribute_default": null,
+        "destination_attribute_generated": null,
+        "match_tenant?": false,
+        "on_update": null
+      },
+      "allow_nil?": false,
+      "generated?": false,
+      "primary_key?": false
+    }
+  ],
+  "table": "mutations",
+  "hash": "9FDB0B98EF8EBC503A015EAD3DC6ED9FF376AE3819477DDCCDD1DA65DE5C32D3",
+  "repo": "Elixir.JidoWorkSystem.Repo",
+  "strict?": false,
+  "identities": [],
+  "multitenancy": {
+    "global": null,
+    "attribute": null,
+    "strategy": null
+  },
+  "base_filter": null,
+  "custom_indexes": [],
+  "custom_statements": [],
+  "has_create_action": true
+}

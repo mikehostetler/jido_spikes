@@ -2,6 +2,9 @@ import Config
 
 config :req_llm, :ollama, base_url: System.get_env("OLLAMA_BASE_URL", "http://localhost:11434/v1")
 
+config :req_llm, :lmstudio,
+  base_url: System.get_env("LMSTUDIO_BASE_URL", "http://127.0.0.1:1234/v1")
+
 # config/runtime.exs is executed for all environments, including
 # during releases. It is executed after compilation and before the
 # system starts, so it is typically used to load production configuration

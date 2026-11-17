@@ -23,7 +23,47 @@ defmodule Jarvis.TestInferenceClient do
     end
   end
 
-  def stream_text(_model, _context, _options), do: {:error, :unsupported}
+  def stream_text(model, context, _options) do
+    if owner = Application.get_env(:jarvis, :test_inference_owner) do
+      send(owner, {:model_request, model, context})
+    end
+
+    case Application.get_env(:jarvis, :test_inference_result, {:ok, "Offline VSM review"}) do
+      {:ok, text} -> test_stream(model, context, text)
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp test_stream(model, context, text) do
+    delay = Application.get_env(:jarvis, :test_stream_delay_ms, 0)
+
+    {:ok, metadata_handle} =
+      ReqLLM.StreamResponse.MetadataHandle.start_link(fn ->
+        %{
+          response_id: "jarvis-test-stream",
+          finish_reason: :stop,
+          usage: %{input_tokens: 1, output_tokens: 1, total_tokens: 2}
+        }
+      end)
+
+    chunks =
+      text
+      |> String.split(~r/(?<=\s)/u, trim: true)
+      |> Stream.map(fn token ->
+        if delay > 0, do: Process.sleep(delay)
+        ReqLLM.StreamChunk.text(token)
+      end)
+
+    {:ok,
+     %ReqLLM.StreamResponse{
+       stream: chunks,
+       metadata_handle: metadata_handle,
+       cancel: fn -> :ok end,
+       model: ReqLLM.model!(model),
+       context: context
+     }}
+  end
+
   def generate_object(_model, _context, _schema, _options), do: {:error, :unsupported}
   def generate_image(_model, _prompt, _options), do: {:error, :unsupported}
   def stream_image(_model, _prompt, _options), do: {:error, :unsupported}

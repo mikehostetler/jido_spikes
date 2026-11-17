@@ -5,4 +5,7 @@ defmodule Jarvis do
 
   @doc "Returns the local Ollama model used by Chat and VSM reviews."
   def model, do: @model
+
+  @doc "Returns the local LM Studio model used by Alice."
+  def alice_model, do: Jarvis.Alice.Spec.model()
 end

@@ -169,6 +169,7 @@ defmodule JarvisWeb.ChatLive do
           <p class="subtitle">A local agent, ready when you are.</p>
         </div>
         <div class="header-actions">
+          <.link navigate={~p"/alice"} class="nav-link">Alice</.link>
           <.link navigate={~p"/memories"} class="nav-link">Memories</.link>
           <div class="model-chip">
             <span class="status-dot"></span>

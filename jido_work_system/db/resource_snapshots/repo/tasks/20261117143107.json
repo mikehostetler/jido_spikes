@@ -1,0 +1,200 @@
+{
+  "attributes": [
+    {
+      "default": "nil",
+      "size": null,
+      "type": "uuid",
+      "source": "id",
+      "references": null,
+      "allow_nil?": false,
+      "generated?": false,
+      "primary_key?": true
+    },
+    {
+      "default": "nil",
+      "size": null,
+      "type": "utc_datetime_usec",
+      "source": "inserted_at",
+      "references": null,
+      "allow_nil?": false,
+      "generated?": false,
+      "primary_key?": false
+    },
+    {
+      "default": "nil",
+      "size": null,
+      "type": "utc_datetime_usec",
+      "source": "updated_at",
+      "references": null,
+      "allow_nil?": false,
+      "generated?": false,
+      "primary_key?": false
+    },
+    {
+      "default": "nil",
+      "size": null,
+      "type": "text",
+      "source": "title",
+      "references": null,
+      "allow_nil?": false,
+      "generated?": false,
+      "primary_key?": false
+    },
+    {
+      "default": "nil",
+      "size": null,
+      "type": "text",
+      "source": "purpose",
+      "references": null,
+      "allow_nil?": false,
+      "generated?": false,
+      "primary_key?": false
+    },
+    {
+      "default": "nil",
+      "size": null,
+      "type": "text",
+      "source": "required_output",
+      "references": null,
+      "allow_nil?": false,
+      "generated?": false,
+      "primary_key?": false
+    },
+    {
+      "default": "nil",
+      "size": null,
+      "type": "text",
+      "source": "quantity",
+      "references": null,
+      "allow_nil?": false,
+      "generated?": false,
+      "primary_key?": false
+    },
+    {
+      "default": "nil",
+      "size": null,
+      "type": "text",
+      "source": "quality",
+      "references": null,
+      "allow_nil?": false,
+      "generated?": false,
+      "primary_key?": false
+    },
+    {
+      "default": "nil",
+      "size": null,
+      "type": "utc_datetime_usec",
+      "source": "target_completion_time",
+      "references": null,
+      "allow_nil?": false,
+      "generated?": false,
+      "primary_key?": false
+    },
+    {
+      "default": "nil",
+      "size": null,
+      "type": "text",
+      "source": "resource_limits",
+      "references": null,
+      "allow_nil?": false,
+      "generated?": false,
+      "primary_key?": false
+    },
+    {
+      "default": "nil",
+      "size": null,
+      "type": "text",
+      "source": "discretion_limits",
+      "references": null,
+      "allow_nil?": false,
+      "generated?": false,
+      "primary_key?": false
+    },
+    {
+      "default": "nil",
+      "size": null,
+      "type": "text",
+      "source": "escalation_conditions",
+      "references": null,
+      "allow_nil?": false,
+      "generated?": false,
+      "primary_key?": false
+    },
+    {
+      "default": "nil",
+      "size": null,
+      "type": "text",
+      "source": "status",
+      "references": null,
+      "allow_nil?": false,
+      "generated?": false,
+      "primary_key?": false
+    },
+    {
+      "default": "nil",
+      "size": null,
+      "type": "uuid",
+      "source": "work_system_id",
+      "references": {
+        "name": "tasks_work_system_id_fkey",
+        "table": "work_systems",
+        "on_delete": null,
+        "multitenancy": {
+          "global": null,
+          "attribute": null,
+          "strategy": null
+        },
+        "destination_attribute": "id",
+        "primary_key?": true,
+        "deferrable": false,
+        "destination_attribute_default": null,
+        "destination_attribute_generated": null,
+        "match_tenant?": false,
+        "on_update": null
+      },
+      "allow_nil?": false,
+      "generated?": false,
+      "primary_key?": false
+    },
+    {
+      "default": "nil",
+      "size": null,
+      "type": "uuid",
+      "source": "accountable_actor_id",
+      "references": {
+        "name": "tasks_accountable_actor_id_fkey",
+        "table": "human_actors",
+        "on_delete": null,
+        "multitenancy": {
+          "global": null,
+          "attribute": null,
+          "strategy": null
+        },
+        "destination_attribute": "id",
+        "primary_key?": true,
+        "deferrable": false,
+        "destination_attribute_default": null,
+        "destination_attribute_generated": null,
+        "match_tenant?": false,
+        "on_update": null
+      },
+      "allow_nil?": false,
+      "generated?": false,
+      "primary_key?": false
+    }
+  ],
+  "table": "tasks",
+  "hash": "9FE15721D9B38B0C5B6BEEF77BF448AD509DCB0E8216366A153D990EAEB71F21",
+  "repo": "Elixir.JidoWorkSystem.Repo",
+  "strict?": false,
+  "identities": [],
+  "multitenancy": {
+    "global": null,
+    "attribute": null,
+    "strategy": null
+  },
+  "base_filter": null,
+  "custom_indexes": [],
+  "custom_statements": [],
+  "has_create_action": true
+}

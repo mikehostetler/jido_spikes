@@ -1,0 +1,124 @@
+{
+  "attributes": [
+    {
+      "default": "nil",
+      "size": null,
+      "type": "uuid",
+      "source": "id",
+      "references": null,
+      "allow_nil?": false,
+      "primary_key?": true,
+      "generated?": false
+    },
+    {
+      "default": "nil",
+      "size": null,
+      "type": "utc_datetime_usec",
+      "source": "inserted_at",
+      "references": null,
+      "allow_nil?": false,
+      "primary_key?": false,
+      "generated?": false
+    },
+    {
+      "default": "nil",
+      "size": null,
+      "type": "utc_datetime_usec",
+      "source": "updated_at",
+      "references": null,
+      "allow_nil?": false,
+      "primary_key?": false,
+      "generated?": false
+    },
+    {
+      "default": "nil",
+      "size": null,
+      "type": "text",
+      "source": "scenario_key",
+      "references": null,
+      "allow_nil?": false,
+      "primary_key?": false,
+      "generated?": false
+    },
+    {
+      "default": "nil",
+      "size": null,
+      "type": "text",
+      "source": "status",
+      "references": null,
+      "allow_nil?": false,
+      "primary_key?": false,
+      "generated?": false
+    },
+    {
+      "default": "nil",
+      "size": null,
+      "type": "bigint",
+      "source": "cursor",
+      "references": null,
+      "allow_nil?": false,
+      "primary_key?": false,
+      "generated?": false
+    },
+    {
+      "default": "nil",
+      "size": null,
+      "type": "bigint",
+      "source": "revision",
+      "references": null,
+      "allow_nil?": false,
+      "primary_key?": false,
+      "generated?": false
+    },
+    {
+      "default": "nil",
+      "size": null,
+      "type": "text",
+      "source": "current_beat",
+      "references": null,
+      "allow_nil?": false,
+      "primary_key?": false,
+      "generated?": false
+    },
+    {
+      "default": "nil",
+      "size": null,
+      "type": "uuid",
+      "source": "work_system_id",
+      "references": {
+        "name": "scenario_runs_work_system_id_fkey",
+        "table": "work_systems",
+        "destination_attribute": "id",
+        "primary_key?": true,
+        "on_delete": null,
+        "on_update": null,
+        "deferrable": false,
+        "match_tenant?": false,
+        "multitenancy": {
+          "global": null,
+          "attribute": null,
+          "strategy": null
+        },
+        "destination_attribute_default": null,
+        "destination_attribute_generated": null
+      },
+      "allow_nil?": false,
+      "primary_key?": false,
+      "generated?": false
+    }
+  ],
+  "table": "scenario_runs",
+  "hash": "BCC38DD075677B2B14A0DC68F5C7CE248F9782622EFFFE43645E74F062AE33B1",
+  "repo": "Elixir.JidoWorkSystem.Repo",
+  "strict?": false,
+  "identities": [],
+  "custom_indexes": [],
+  "base_filter": null,
+  "custom_statements": [],
+  "multitenancy": {
+    "global": null,
+    "attribute": null,
+    "strategy": null
+  },
+  "has_create_action": true
+}

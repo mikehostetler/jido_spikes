@@ -1,0 +1,120 @@
+{
+  "attributes": [
+    {
+      "default": "nil",
+      "size": null,
+      "type": "uuid",
+      "source": "id",
+      "references": null,
+      "allow_nil?": false,
+      "generated?": false,
+      "primary_key?": true
+    },
+    {
+      "default": "nil",
+      "size": null,
+      "type": "utc_datetime_usec",
+      "source": "inserted_at",
+      "references": null,
+      "allow_nil?": false,
+      "generated?": false,
+      "primary_key?": false
+    },
+    {
+      "default": "nil",
+      "size": null,
+      "type": "utc_datetime_usec",
+      "source": "updated_at",
+      "references": null,
+      "allow_nil?": false,
+      "generated?": false,
+      "primary_key?": false
+    },
+    {
+      "default": "nil",
+      "size": null,
+      "type": "text",
+      "source": "status",
+      "references": null,
+      "allow_nil?": false,
+      "generated?": false,
+      "primary_key?": false
+    },
+    {
+      "default": "%{}",
+      "size": null,
+      "type": "map",
+      "source": "current_state",
+      "references": null,
+      "allow_nil?": false,
+      "generated?": false,
+      "primary_key?": false
+    },
+    {
+      "default": "nil",
+      "size": null,
+      "type": "uuid",
+      "source": "task_id",
+      "references": {
+        "name": "work_executions_task_id_fkey",
+        "table": "tasks",
+        "on_delete": null,
+        "multitenancy": {
+          "global": null,
+          "attribute": null,
+          "strategy": null
+        },
+        "destination_attribute": "id",
+        "primary_key?": true,
+        "deferrable": false,
+        "destination_attribute_default": null,
+        "destination_attribute_generated": null,
+        "match_tenant?": false,
+        "on_update": null
+      },
+      "allow_nil?": false,
+      "generated?": false,
+      "primary_key?": false
+    },
+    {
+      "default": "nil",
+      "size": null,
+      "type": "uuid",
+      "source": "work_cell_id",
+      "references": {
+        "name": "work_executions_work_cell_id_fkey",
+        "table": "work_cells",
+        "on_delete": null,
+        "multitenancy": {
+          "global": null,
+          "attribute": null,
+          "strategy": null
+        },
+        "destination_attribute": "id",
+        "primary_key?": true,
+        "deferrable": false,
+        "destination_attribute_default": null,
+        "destination_attribute_generated": null,
+        "match_tenant?": false,
+        "on_update": null
+      },
+      "allow_nil?": false,
+      "generated?": false,
+      "primary_key?": false
+    }
+  ],
+  "table": "work_executions",
+  "hash": "50350C53C893F39FFB35AC355C613878F02CFA02F18B3C4CE3864924DB3ECAA0",
+  "repo": "Elixir.JidoWorkSystem.Repo",
+  "strict?": false,
+  "identities": [],
+  "multitenancy": {
+    "global": null,
+    "attribute": null,
+    "strategy": null
+  },
+  "base_filter": null,
+  "custom_indexes": [],
+  "custom_statements": [],
+  "has_create_action": true
+}

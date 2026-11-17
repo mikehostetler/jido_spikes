@@ -1,13 +1,14 @@
 # Jarvis
 
-Jarvis is a small local demo with three uses:
+Jarvis is a small local demo with four uses:
 
 - Memory CRUD and SQLite FTS5 recall.
 - Simple streaming Chat through local Ollama.
 - A Timer-driven VSM review that recalls Memory, calls Ollama in System 4, and records the result in System 5.
+- Alice, an inspectable LM Studio cognitive actor with typed replacement state.
 
-The project uses the local Jido checkout at `../../jido_core/jido` and the local
-VSM package at `../../jido_workflow/jido_vsm`.
+The project pins Jido and Jido VSM to known Git revisions. Alice uses the local
+`jido_character` package at `../../jido_intelligence/jido_character`.
 
 Jarvis currently targets the consolidated Jido V3 work. The local Jido and VSM
 checkouts must use compatible V3 revisions. Package `main` branches can fail
@@ -23,11 +24,69 @@ mix phx.server
 ```
 
 Open [Jarvis](http://localhost:4004) for Chat. Open `/memories` for Memory CRUD.
+Open `/alice` for the Alice cognitive-cycle demo.
 Use `/?conversation=planning` to select a separate Chat conversation.
 
 Both Chat and the VSM review use `ollama:qwen3-coder-next:q8_0`. Set
 `OLLAMA_BASE_URL` to change the default Ollama address,
 `http://localhost:11434/v1`.
+
+Alice uses `lmstudio:lfm3-1.7b` by default. Set `ALICE_MODEL` to an exact model
+ID returned by LM Studio. Set `LMSTUDIO_BASE_URL` to change the default API
+address, `http://127.0.0.1:1234/v1`. Alice gives each model call and each full
+cognitive cycle a ten-minute timeout.
+
+## Alice
+
+Alice starts from a run directive and an initial thought. Step mode requests one
+cognitive cycle when you select **Next cycle**. Automatic mode requests the next
+cycle after each committed result until the cycle limit. The default and maximum
+limit is 100.
+
+`Jarvis.Alice.Character` defines the stable identity kernel with
+`Jido.Character`. Its version-one fields include identity, background,
+personality, values, quirks, voice, permanent knowledge, and core instructions.
+The default identity is Alice, call sign Major: an original cybernetic operative
+inspired by *Ghost in the Shell*. The prompt does not copy film dialogue or
+present Alice as the canonical character.
+
+Alice keeps five inputs separate:
+
+- The Jido.Character identity kernel defines who Alice is and changes slowly.
+- `Jarvis.Alice.GhostState` is her typed, bounded, replaceable working state.
+- SQLite supplies episodic memory from one isolated namespace per run.
+- The editable run directive defines the current objective without replacing identity.
+- `Jarvis.Alice.Pulse` contains the new observation and the selected reasoning strategy.
+
+`Jarvis.Alice.CognitiveCycle` owns the outer actor cycle: observe, recall,
+assemble context, select a strategy, validate a `CognitiveProposal`, replace the
+ghost-state, commit memory, stage effects, and choose the next wait. ReAct is the
+first pluggable inner reasoning strategy. It is not the actor lifecycle.
+
+`Jarvis.Alice.Prompt` owns all lifecycle, state, memory, tool, effect, and output
+instructions. Each cycle creates a fresh Jido ReAct agent. It receives the exact
+rendered character, directive, observation, ghost-state, recalled Alice memory,
+strategy, and tool policy. The model returns a structured proposal with a
+narrative, complete replacement ghost-state, candidate memories, and next-wake
+choice. The LiveView creates a cycle card before inference starts. It shows model
+tokens and private-reasoning chunks as Jido stream signals arrive. The completed
+card keeps the exact model input, output, prior state, replacement state, memory
+IDs, strategy, tool policy, and staged-effect count.
+
+The tool boundary is governed. Read tools can run inside ReAct. Write tools only
+return staged effect data during reasoning. The outer cycle validates those
+effects. The LiveView first commits the replacement ghost-state, then dispatches
+each effect with a deterministic pulse-scoped ID. Speculative branch strategies
+cannot receive write tools, and effect validation rejects a branch write if one
+appears.
+
+Alice requests `reasoning_effort: :none` from LM Studio. This prevents the
+small LFM3 model from using its full output budget on hidden reasoning before it
+writes the required ghost-state. Its public response remains visible as a live
+token stream.
+
+Alice memory uses one `alice-<run-id>` SQLite namespace per run. It does not
+read or write the `jarvis` or `chat:<conversation-id>` namespaces.
 
 ## Memory
 

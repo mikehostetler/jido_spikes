@@ -18,6 +18,7 @@ defmodule JarvisWeb.Router do
     pipe_through :browser
 
     live "/", ChatLive
+    live "/alice", AliceLive
     live "/memories", MemoriesLive
   end
 

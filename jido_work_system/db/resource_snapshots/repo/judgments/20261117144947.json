@@ -1,0 +1,238 @@
+{
+  "attributes": [
+    {
+      "default": "nil",
+      "size": null,
+      "type": "uuid",
+      "source": "id",
+      "references": null,
+      "allow_nil?": false,
+      "generated?": false,
+      "primary_key?": true
+    },
+    {
+      "default": "nil",
+      "size": null,
+      "type": "utc_datetime_usec",
+      "source": "inserted_at",
+      "references": null,
+      "allow_nil?": false,
+      "generated?": false,
+      "primary_key?": false
+    },
+    {
+      "default": "nil",
+      "size": null,
+      "type": "utc_datetime_usec",
+      "source": "updated_at",
+      "references": null,
+      "allow_nil?": false,
+      "generated?": false,
+      "primary_key?": false
+    },
+    {
+      "default": "nil",
+      "size": null,
+      "type": "text",
+      "source": "actor_label",
+      "references": null,
+      "allow_nil?": false,
+      "generated?": false,
+      "primary_key?": false
+    },
+    {
+      "default": "nil",
+      "size": null,
+      "type": "text",
+      "source": "situation",
+      "references": null,
+      "allow_nil?": false,
+      "generated?": false,
+      "primary_key?": false
+    },
+    {
+      "default": "nil",
+      "size": null,
+      "type": [
+        "array",
+        "text"
+      ],
+      "source": "observations",
+      "references": null,
+      "allow_nil?": false,
+      "generated?": false,
+      "primary_key?": false
+    },
+    {
+      "default": "nil",
+      "size": null,
+      "type": [
+        "array",
+        "text"
+      ],
+      "source": "options",
+      "references": null,
+      "allow_nil?": false,
+      "generated?": false,
+      "primary_key?": false
+    },
+    {
+      "default": "nil",
+      "size": null,
+      "type": "text",
+      "source": "decision_text",
+      "references": null,
+      "allow_nil?": false,
+      "generated?": false,
+      "primary_key?": false
+    },
+    {
+      "default": "nil",
+      "size": null,
+      "type": "text",
+      "source": "stated_basis",
+      "references": null,
+      "allow_nil?": false,
+      "generated?": false,
+      "primary_key?": false
+    },
+    {
+      "default": "nil",
+      "size": null,
+      "type": "text",
+      "source": "uncertainty",
+      "references": null,
+      "allow_nil?": false,
+      "generated?": false,
+      "primary_key?": false
+    },
+    {
+      "default": "nil",
+      "size": null,
+      "type": "text",
+      "source": "risk",
+      "references": null,
+      "allow_nil?": false,
+      "generated?": false,
+      "primary_key?": false
+    },
+    {
+      "default": "nil",
+      "size": null,
+      "type": "uuid",
+      "source": "actor_id",
+      "references": {
+        "name": "judgments_actor_id_fkey",
+        "table": "human_actors",
+        "on_delete": null,
+        "multitenancy": {
+          "global": null,
+          "strategy": null,
+          "attribute": null
+        },
+        "destination_attribute": "id",
+        "primary_key?": true,
+        "deferrable": false,
+        "destination_attribute_default": null,
+        "destination_attribute_generated": null,
+        "match_tenant?": false,
+        "on_update": null
+      },
+      "allow_nil?": true,
+      "generated?": false,
+      "primary_key?": false
+    },
+    {
+      "default": "nil",
+      "size": null,
+      "type": "uuid",
+      "source": "work_cell_id",
+      "references": {
+        "name": "judgments_work_cell_id_fkey",
+        "table": "work_cells",
+        "on_delete": null,
+        "multitenancy": {
+          "global": null,
+          "strategy": null,
+          "attribute": null
+        },
+        "destination_attribute": "id",
+        "primary_key?": true,
+        "deferrable": false,
+        "destination_attribute_default": null,
+        "destination_attribute_generated": null,
+        "match_tenant?": false,
+        "on_update": null
+      },
+      "allow_nil?": true,
+      "generated?": false,
+      "primary_key?": false
+    },
+    {
+      "default": "nil",
+      "size": null,
+      "type": "uuid",
+      "source": "task_id",
+      "references": {
+        "name": "judgments_task_id_fkey",
+        "table": "tasks",
+        "on_delete": null,
+        "multitenancy": {
+          "global": null,
+          "strategy": null,
+          "attribute": null
+        },
+        "destination_attribute": "id",
+        "primary_key?": true,
+        "deferrable": false,
+        "destination_attribute_default": null,
+        "destination_attribute_generated": null,
+        "match_tenant?": false,
+        "on_update": null
+      },
+      "allow_nil?": false,
+      "generated?": false,
+      "primary_key?": false
+    },
+    {
+      "default": "nil",
+      "size": null,
+      "type": "uuid",
+      "source": "method_id",
+      "references": {
+        "name": "judgments_method_id_fkey",
+        "table": "judgment_methods",
+        "on_delete": null,
+        "multitenancy": {
+          "global": null,
+          "strategy": null,
+          "attribute": null
+        },
+        "destination_attribute": "id",
+        "primary_key?": true,
+        "deferrable": false,
+        "destination_attribute_default": null,
+        "destination_attribute_generated": null,
+        "match_tenant?": false,
+        "on_update": null
+      },
+      "allow_nil?": false,
+      "generated?": false,
+      "primary_key?": false
+    }
+  ],
+  "table": "judgments",
+  "hash": "D019668D6579309E7DFD13D76C6658931DADB7984EA0C5918C01F5B30C70D878",
+  "repo": "Elixir.JidoWorkSystem.Repo",
+  "strict?": false,
+  "identities": [],
+  "multitenancy": {
+    "global": null,
+    "strategy": null,
+    "attribute": null
+  },
+  "base_filter": null,
+  "custom_indexes": [],
+  "custom_statements": [],
+  "has_create_action": true
+}

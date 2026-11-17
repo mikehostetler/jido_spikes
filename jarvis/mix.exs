@@ -40,8 +40,11 @@ defmodule Jarvis.MixProject do
   # Type `mix help deps` for examples and options.
   defp deps do
     [
-      {:jido, path: "../../jido_core/jido", override: true},
-      {:jido_vsm, path: "../../jido_workflow/jido_vsm"},
+      {:jido,
+       github: "agentjido/jido", ref: "ec96da6015b4b1e5a1642d50651235d9d52808ec", override: true},
+      {:jido_vsm,
+       github: "mikehostetler/jido_vsm", ref: "3270bcc0c9d81bc6ade4d5d846e6940171e65be8"},
+      {:jido_character, path: "../../jido_intelligence/jido_character"},
       {:mdex, "~> 0.14.6"},
       {:lumis, "~> 0.10.9"},
       {:lumis_wasm_elixir, "~> 0.26.10"},
