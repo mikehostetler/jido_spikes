@@ -1,0 +1,9 @@
+{
+  "id": "failure",
+  "label": "Load failed CI summary",
+  "head": "4c67f0a2b89d135e4076ac93d2e6f105a83bc971",
+  "check_head": "4c67f0a2b89d135e4076ac93d2e6f105a83bc971",
+  "status": "failed",
+  "assertion_complete": false,
+  "evidence": "mix test: the delivery test failed. CI did not include the assertion."
+}

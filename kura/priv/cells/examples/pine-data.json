@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "id": "pine-data",
+  "name": "Pine from data",
+  "role": "# ROLE\nInspect the local workspace and record the digest of its brief. Ask for approval before using a new playbook.",
+  "capabilities": ["workspace_read", "digest"],
+  "skills": ["jido"],
+  "memories": ["The sample brief comes from this definition."],
+  "workspace": {
+    "policy": "read_only",
+    "brief": "The Pine definition supplied this brief.\n"
+  },
+  "cognition": "local",
+  "vsm": "standard",
+  "signals": {
+    "kura.workspace.inspect": "inspect",
+    "kura.workspace.observed": "workspace_observation"
+  },
+  "handlers": {
+    "inspect": "workspace.inspect@1",
+    "workspace_observation": "workspace.observe@1"
+  },
+  "tasks": {
+    "record_observation": "workspace.record_observation@1"
+  },
+  "playbooks": {
+    "inspect": ["read_brief", "check_brief"]
+  },
+  "children": {
+    "check": {
+      "name": "Pine check",
+      "role": "# ROLE\nInspect the child workspace.",
+      "capabilities": ["workspace_read", "digest"],
+      "workspace": {
+        "policy": "read_only",
+        "brief": "This brief belongs to the child only.\n"
+      },
+      "signals": {
+        "kura.workspace.inspect": "inspect"
+      },
+      "handlers": {
+        "inspect": "workspace.inspect@1"
+      },
+      "playbooks": {
+        "inspect": ["read_brief", "check_brief"]
+      }
+    }
+  }
+}

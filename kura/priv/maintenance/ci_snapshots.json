@@ -1,0 +1,35 @@
+[
+  {
+    "id": "failure",
+    "label": "Load failed CI",
+    "head": "4c67f0a2b89d135e4076ac93d2e6f105a83bc971",
+    "check_head": "4c67f0a2b89d135e4076ac93d2e6f105a83bc971",
+    "status": "failed",
+    "assertion_complete": true,
+    "evidence": "mix test: the delivery test expected one receipt and received two."
+  },
+  {
+    "id": "new_head",
+    "label": "Load new commit",
+    "head": "9e8dca714b50f6a23c41e9db052ca7f38a693e20",
+    "check_head": "9e8dca714b50f6a23c41e9db052ca7f38a693e20",
+    "status": "pending",
+    "evidence": "The follow-up commit is now the PR head. CI is queued."
+  },
+  {
+    "id": "stale_pass",
+    "label": "Load stale CI pass",
+    "head": "9e8dca714b50f6a23c41e9db052ca7f38a693e20",
+    "check_head": "4c67f0a2b89d135e4076ac93d2e6f105a83bc971",
+    "status": "passed",
+    "evidence": "A rerun passed on the original commit."
+  },
+  {
+    "id": "pass",
+    "label": "Load new-head CI pass",
+    "head": "9e8dca714b50f6a23c41e9db052ca7f38a693e20",
+    "check_head": "9e8dca714b50f6a23c41e9db052ca7f38a693e20",
+    "status": "passed",
+    "evidence": "mix test passed on the current PR head."
+  }
+]
