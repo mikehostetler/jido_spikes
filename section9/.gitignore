@@ -1,8 +1,0 @@
-/_build/
-/deps/
-/.env
-/data/*.db*
-/fixture/workspace/lib/job_server.ex
-/fixture/runs/
-/traces/*.json
-/erl_crash.dump

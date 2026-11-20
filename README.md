@@ -1,12 +1,23 @@
 # Jido Spikes
 
-This repository is a grab bag of Jido ideas, experiments, and working spikes.
+This repository contains the Kura experiment. The other Jido experiments moved
+to the sibling Jido Lab checkout.
 
-Each spike is self-contained. It can use local Jido package checkouts while an
-idea is under active development. A spike is evidence for exploration, not a
-stable package or supported public API.
+## Kura
 
-## Spikes
+[Kura](kura/README.md) is a Phoenix app for durable work cells. Cedar runs
+local maintenance. Pine inspects a read-only workspace.
 
-- [`jarvis/`](jarvis/) — A local Phoenix demo for Jido Chat, Memory, Timer,
-  and VSM integration.
+## Moved projects
+
+- Jarvis, Jido Work, Jido Work System, and Section 9 have guided examples and
+  full standalone projects in Jido Lab. [Jido Lab project guide](https://github.com/agentjido/jido_lab/blob/main/README.md#migrated-spikes)
+- Support Desk chat is in Jido Lab under **Chat → Durable agents**.
+  [Support Desk integration](https://github.com/agentjido/jido_lab/commit/4497903)
+- Turn Memory is in Jido Lab under **Core → Durable turns**. The two scenarios
+  compare full and filtered history and recover a committed reply after the
+  caller disconnects.
+  [Turn Memory integration](https://github.com/agentjido/jido_lab/commit/a8b7dc2)
+- Jido Praxis is in its own private repository. The workspace checkout is at
+  `jido_workflow/jido_praxis`.
+  [Jido Praxis](https://github.com/mikehostetler/jido_praxis)
