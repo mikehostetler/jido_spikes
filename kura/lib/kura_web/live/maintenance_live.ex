@@ -7,7 +7,12 @@ defmodule KuraWeb.MaintenanceLive do
   @impl true
   def mount(_params, _session, socket) do
     if connected?(socket), do: Maintenance.subscribe()
-    {:ok, socket |> assign(page_title: "Maintenance", running: false) |> refresh()}
+    {:ok, assign(socket, page_title: "Maintenance", running: false, case_id: nil)}
+  end
+
+  @impl true
+  def handle_params(params, _uri, socket) do
+    {:noreply, socket |> assign(:case_id, params["case"]) |> refresh()}
   end
 
   @impl true
@@ -15,11 +20,22 @@ defmodule KuraWeb.MaintenanceLive do
     do: {:noreply, socket}
 
   def handle_event("apply_fixture", %{"fixture" => id}, socket) do
+    case_id = socket.assigns.case_record && socket.assigns.case_record.id
+
     {:noreply,
      socket
      |> assign(:running, true)
-     |> start_async(:apply_fixture, fn -> Maintenance.apply_fixture(id) end)}
+     |> start_async(:apply_fixture, fn -> Maintenance.apply_fixture(id, case_id) end)}
   end
+
+  def handle_event("open_pool", _params, %{assigns: %{running: false}} = socket) do
+    {:noreply,
+     socket
+     |> assign(:running, true)
+     |> start_async(:open_pool, fn -> Maintenance.open_pool() end)}
+  end
+
+  def handle_event("open_pool", _params, socket), do: {:noreply, socket}
 
   def handle_event("replay_candidate", %{"id" => id}, socket) do
     {:noreply,
@@ -51,17 +67,36 @@ defmodule KuraWeb.MaintenanceLive do
   def handle_async(:playbook, _error, socket),
     do: {:noreply, put_flash(socket, :error, "Kura could not replay or approve this candidate.")}
 
+  def handle_async(:open_pool, {:ok, {:ok, [first | _]}}, socket) do
+    {:noreply,
+     socket |> assign(:running, false) |> push_patch(to: ~p"/maintenance?case=#{first.id}")}
+  end
+
+  def handle_async(:open_pool, _error, socket) do
+    {:noreply,
+     socket
+     |> assign(:running, false)
+     |> refresh()
+     |> put_flash(:error, "Kura could not open a new set of fixture cases.")}
+  end
+
   @impl true
   def handle_info(:maintenance_changed, socket), do: {:noreply, refresh(socket)}
 
   defp refresh(socket) do
-    record = Maintenance.current()
+    record = Maintenance.fetch(socket.assigns.case_id) || Maintenance.current()
+    portfolio = Maintenance.portfolio()
+    open_cases = Enum.count(portfolio, &(&1.state["phase"] != "closed"))
     versions = Playbooks.versions("cedar", "ci_triage")
+    pending = Maintenance.pending(record)
     events = if record, do: record.state["events"], else: []
     {assessments, history} = Enum.split_with(events, &get_in(&1, ["evidence", "trace"]))
 
     assign(socket,
       case_record: record,
+      portfolio: portfolio,
+      open_cases: open_cases,
+      workers: Maintenance.workers(),
       state: record && record.state,
       history: history,
       assessments: assessments,
@@ -70,8 +105,8 @@ defmodule KuraWeb.MaintenanceLive do
       candidates: Enum.reject(versions, & &1.approved),
       earlier_versions: Enum.filter(versions, &(&1.approved and not &1.active)),
       manual_review: Maintenance.fixture_review_available?(record),
-      pending: Maintenance.pending(record),
-      next: Maintenance.next_fixture(record)
+      pending: pending,
+      next: Maintenance.next_fixture(record, pending)
     )
   end
 
@@ -81,6 +116,10 @@ defmodule KuraWeb.MaintenanceLive do
   defp phase("blocked"), do: "Blocked"
 
   defp sha(commit), do: String.slice(commit, 0, 12)
+
+  defp worker_label("cedar/review"), do: "Review 1"
+  defp worker_label("cedar/review-2"), do: "Review 2"
+  defp worker_label("cedar/review-3"), do: "Review 3"
 
   defp trigger("ci_snapshot"), do: "CI snapshot"
   defp trigger("review_reply"), do: "Review reply"
@@ -132,9 +171,61 @@ defmodule KuraWeb.MaintenanceLive do
       </header>
 
       <main class="mx-auto max-w-5xl space-y-5 p-4 sm:p-6">
+        <section
+          class="border border-base-300 bg-base-100 p-5 sm:p-6"
+          aria-labelledby="portfolio-title"
+        >
+          <div class="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h2 id="portfolio-title" class="text-lg font-semibold">Cedar's case portfolio</h2>
+              <p class="mt-1 text-sm text-base-content/70">Cedar coordinates three child Holons.</p>
+            </div>
+            <button
+              :if={@open_cases == 0}
+              id="open-maintenance-pool"
+              type="button"
+              class="btn btn-sm btn-outline rounded-sm"
+              phx-click="open_pool"
+              disabled={@running}
+            >
+              Load 10 fixture cases
+            </button>
+            <p :if={@portfolio != []} id="portfolio-count" class="text-sm font-medium">
+              {@open_cases} open · {length(@portfolio)} total
+            </p>
+          </div>
+          <div :if={@portfolio != []} class="mt-4 grid gap-3 md:grid-cols-3">
+            <section
+              :for={worker <- @workers}
+              data-worker={worker}
+              class="border border-base-300 p-3"
+            >
+              <h3 class="text-sm font-semibold">{worker_label(worker)}</h3>
+              <ul class="mt-2 space-y-1">
+                <li :for={record <- Enum.filter(@portfolio, &(Maintenance.worker_id(&1) == worker))}>
+                  <.link
+                    patch={~p"/maintenance?case=#{record.id}"}
+                    data-case={record.id}
+                    aria-current={if @case_record && @case_record.id == record.id, do: "true"}
+                    class={[
+                      "flex justify-between gap-2 px-2 py-1 text-sm hover:bg-base-200",
+                      @case_record && @case_record.id == record.id && "bg-base-200 font-medium"
+                    ]}
+                  >
+                    <span>Case {record.state["slot"]}</span>
+                    <span class="text-xs text-base-content/70">{phase(record.state["phase"])}</span>
+                  </.link>
+                </li>
+              </ul>
+            </section>
+          </div>
+        </section>
+
         <section aria-labelledby="case-title" class="border border-base-300 bg-base-100 p-5 sm:p-6">
           <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
-            <h1 id="case-title" class="text-2xl font-semibold tracking-tight">Delivery test</h1>
+            <h1 id="case-title" class="text-2xl font-semibold tracking-tight">
+              {if @state && @state["slot"], do: "Case #{@state["slot"]}", else: "Delivery test"}
+            </h1>
             <span
               :if={@state}
               id="maintenance-status"
@@ -155,6 +246,10 @@ defmodule KuraWeb.MaintenanceLive do
               else: "Choose a local CI report to see how Cedar investigates a failed test."}
           </p>
           <dl :if={@state} class="mt-4 flex flex-wrap gap-x-5 gap-y-1 text-xs text-base-content/70">
+            <div :if={@state["worker"]} class="flex items-baseline gap-2">
+              <dt>Assigned worker</dt>
+              <dd>{worker_label(@state["worker"])}</dd>
+            </div>
             <div class="flex items-baseline gap-2">
               <dt>Failed commit</dt>
               <dd><code title={@state["original_head"]}>{sha(@state["original_head"])}</code></dd>
@@ -173,6 +268,16 @@ defmodule KuraWeb.MaintenanceLive do
             <h2 class="font-semibold">
               {method_label(@playbook["result"]["method"])} · Playbook v{@playbook["version"]}
             </h2>
+            <p
+              :if={learned = @playbook["learned_from"]}
+              id="cedar-learned-replay"
+              data-version={learned["version_id"]}
+              data-learning-pulse={learned["pulse_id"]}
+              data-replay-pulse={@playbook["run_id"]}
+              class="mt-1 text-xs text-base-content/70"
+            >
+              Loom replayed the playbook Cedar learned with Tune.
+            </p>
             <p
               :if={@playbook["result"]["finding"] || @playbook["question"]}
               class="mt-1 max-w-prose text-base-content/80"
@@ -314,7 +419,13 @@ defmodule KuraWeb.MaintenanceLive do
             do: trigger(@event["evidence"]["trigger"]),
             else: "Cognitive pulse"}
         </summary>
-        <.react_trace evidence={@event["evidence"]} />
+        <p :if={learning = get_in(@event, ["evidence", "trace", "learning"])} class="mt-2">
+          {learning["reason"] || @event["evidence"]["trace"]["output"]}
+        </p>
+        <.react_trace
+          :if={!get_in(@event, ["evidence", "trace", "learning"])}
+          evidence={@event["evidence"]}
+        />
       </details>
     </li>
     """
@@ -354,6 +465,27 @@ defmodule KuraWeb.MaintenanceLive do
       <p :if={rule = learned_rule(@version)} class="mt-1 leading-relaxed text-base-content/80">
         {rule}
       </p>
+      <div
+        :if={@version.evidence["source"] == "tune"}
+        data-tune-learning={@version.evidence["pulse_id"]}
+        class="mt-2 text-xs text-base-content/70"
+      >
+        <p>Tune scored both methods using Cedar's saved traces and a sparse CI fixture.</p>
+        <p class="mt-1">
+          Baseline {@version.evidence["scores"]["baseline"]} · Guarded {@version.evidence["scores"][
+            "guarded"
+          ]}
+        </p>
+        <details class="mt-1">
+          <summary class="cursor-pointer">Source pulses</summary>
+          <p class="mt-1 break-all">
+            CI <code>{@version.evidence["observations"]["ci_pulse_id"]}</code>
+          </p>
+          <p class="mt-1 break-all">
+            Review <code>{@version.evidence["observations"]["review_pulse_id"]}</code>
+          </p>
+        </details>
+      </div>
       <details :if={@version.replay || @version.evidence["case_id"]} class="mt-2">
         <summary class="cursor-pointer text-xs text-base-content/70">
           {cond do

@@ -32,6 +32,13 @@ defmodule Kura.Cell.Control do
   end
 
   def authorize(cell, entry_id) do
+    # The delivery operation records one receipt at a time.
+    :global.trans({{__MODULE__, cell.id}, self()}, fn -> authorize_once(cell, entry_id) end, [
+      node()
+    ])
+  end
+
+  defp authorize_once(cell, entry_id) do
     # Use a new VSM correlation ID each time a durable request is retried.
     request_id = entry_id <> ":" <> Ash.UUID.generate()
 

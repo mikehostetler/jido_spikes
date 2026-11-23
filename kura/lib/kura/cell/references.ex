@@ -4,7 +4,8 @@ defmodule Kura.Cell.References do
   alias Jido.Catalog
   alias Jido.Catalog.Manifest
   alias Jido.VSM.{Action, Agent}
-  alias Kura.Cell.{Control, Plugin}
+  alias Jido.Holon.Plugin
+  alias Kura.Cell.Control
 
   @definition_providers [
     __MODULE__,

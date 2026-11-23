@@ -1,6 +1,7 @@
 defmodule Kura.Cells do
   @moduledoc "Addresses a cell's command, conversation, and memory channels."
-  alias Kura.Cell.{Catalog, Cognition, Definition, Inbox, Journal, Runtime}
+  alias Jido.Holon
+  alias Kura.Cell.{Catalog, Cognition, Definition, Host, Journal}
 
   defdelegate all(), to: Catalog
   defdelegate fetch(id), to: Catalog
@@ -25,20 +26,18 @@ defmodule Kura.Cells do
   end
 
   @doc false
-  def recover do
-    for id <- Inbox.queued_cells(), do: activate(id)
-  end
+  def recover, do: Holon.recover(&fetch/1, Host.options())
 
   def activate(id) do
-    with {:ok, cell} <- fetch(id), do: Runtime.ensure(cell)
+    with {:ok, cell} <- fetch(id), do: Holon.activate(cell, Host.options())
   end
 
   def wake(id) do
-    with {:ok, pid} <- activate(id), do: GenServer.cast(pid, :wake)
+    with {:ok, cell} <- fetch(id), do: Holon.wake(cell, Host.options())
   end
 
   def bus(id) do
-    with {:ok, _} <- activate(id), do: Jido.Signal.Bus.whereis("kura:" <> id)
+    with {:ok, cell} <- fetch(id), do: Holon.bus(cell, Host.options())
   end
 
   def command(id, :inspect) do
@@ -51,19 +50,12 @@ defmodule Kura.Cells do
 
   def command(_id, _command), do: {:error, :unknown_command}
 
-  def signal(id, %Jido.Signal{type: type, data: payload}) do
-    with {:ok, cell} <- fetch(id),
-         {:ok, kind} <- Map.fetch(cell.signals, type),
-         true <- Map.has_key?(cell.pulse_handlers, kind),
-         {:ok, pid} <- Runtime.ensure(cell),
-         {:ok, entry} <-
-           Inbox.enqueue(id, kind, payload, channel: "command", input: command_label(kind)) do
-      notify(entry)
-      GenServer.cast(pid, :wake)
-      {:ok, entry}
-    else
-      {:error, _} = error -> error
-      _ -> {:error, :unhandled_signal}
+  def signal(id, %Jido.Signal{type: type} = signal) do
+    with {:ok, cell} <- fetch(id) do
+      Holon.signal(cell, signal, Host.options(),
+        channel: "command",
+        input: command_label(cell.signals[type])
+      )
     end
   end
 
@@ -101,13 +93,7 @@ defmodule Kura.Cells do
     end
   end
 
-  # Chat and memory do not wake the work runner.
-  defp notify(entry) do
-    case Jido.Signal.Bus.whereis("kura:" <> entry.cell_id) do
-      {:ok, bus} -> Runtime.publish(bus, entry)
-      _ -> Phoenix.PubSub.broadcast(Kura.PubSub, "cell:" <> entry.cell_id, :cell_changed)
-    end
-  end
+  defp notify(entry), do: Holon.notify(entry, Host.options())
 
   defp text(value) when is_binary(value) and byte_size(value) <= 2_000 do
     case String.trim(value) do

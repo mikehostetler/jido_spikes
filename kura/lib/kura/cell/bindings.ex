@@ -7,7 +7,8 @@ defmodule Kura.Cell.Bindings do
   }
   @tasks %{"workspace.record_observation@1" => Kura.Playbooks.Observation}
 
-  def resolve(%{"runtime" => runtime} = profile) do
+  def resolve(%{"role" => %{"text" => _}, "runtime" => runtime} = profile)
+      when is_map(runtime) and map_size(runtime) == 4 do
     capabilities = profile["capabilities"]
 
     with {:ok, handlers} <- bind(runtime["handlers"], &resolve_handler(&1, capabilities)),
@@ -24,6 +25,8 @@ defmodule Kura.Cell.Bindings do
       _ -> {:error, :invalid_cell_bindings}
     end
   end
+
+  def resolve(_), do: {:error, :invalid_cell_bindings}
 
   defp bind(entries, resolve) when is_map(entries) do
     Enum.reduce_while(entries, {:ok, %{}}, fn {key, ref}, {:ok, acc} ->

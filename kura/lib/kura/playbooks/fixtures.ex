@@ -19,6 +19,19 @@ defmodule Kura.Playbooks.Fixtures do
   def sparse, do: @sparse
   def review_finding, do: @review
 
+  def snapshot(id, scope), do: scoped(snapshot(id), scope)
+  def sparse(scope), do: scoped(sparse(), scope)
+
+  defp scoped(nil, _scope), do: nil
+  defp scoped(snapshot, nil), do: snapshot
+
+  defp scoped(snapshot, scope) do
+    for key <- ["head", "check_head"], into: snapshot do
+      digest = :crypto.hash(:sha, [scope, ":", snapshot[key]])
+      {key, Base.encode16(digest, case: :lower)}
+    end
+  end
+
   def compare(baseline, candidate) when not is_nil(baseline) do
     with {:ok, baseline_cases} <- run_cases(baseline),
          {:ok, candidate_cases} <- run_cases(candidate) do

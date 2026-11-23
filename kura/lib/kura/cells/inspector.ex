@@ -1,12 +1,18 @@
 defmodule Kura.Cells.Inspector do
   require Kura.Cell.Control.Adapter
-  use Kura.Cell, name: "workspace_inspector", description: "Workspace inspector"
+  use Jido.Holon, vsm: true, name: "workspace_inspector", description: "Workspace inspector"
 
   def pulse_handlers do
-    %{"inspect" => Kura.WorkspaceInspection, "Inspect workspace" => Kura.WorkspaceInspection}
+    %{
+      "inspect" => Kura.WorkspaceInspection,
+      "Inspect workspace" => Kura.WorkspaceInspection,
+      "ci_snapshot" => Kura.Maintenance.Pulse,
+      "review_reply" => Kura.Maintenance.Pulse,
+      "case_closed" => Kura.Maintenance.Pulse
+    }
   end
 
-  cell do
+  holon do
     role("inspector/ROLE.md")
     capabilities(["workspace_read", "digest"])
     signals(%{"kura.workspace.inspect" => "inspect"})

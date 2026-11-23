@@ -1,8 +1,9 @@
 defmodule Kura.Cell.Definition do
   @moduledoc "Imports local Cell declarations and stores canonical Jido Agent documents."
 
-  alias Jido.{Agent, Codec}
-  alias Kura.Cell.{Catalog, Control, Plugin, References}
+  alias Jido.{Codec, Holon}
+  alias Jido.Holon.Plugin
+  alias Kura.Cell.{Bindings, Catalog, Control, References}
   alias Kura.Repo
 
   @fields ~w(name role capabilities signals skills memories playbooks children handlers tasks workspace cognition vsm)
@@ -45,7 +46,7 @@ defmodule Kura.Cell.Definition do
   def fetch(id), do: Repo.get(Record, id)
   def all, do: Repo.all(Record)
 
-  def load(%Record{} = record), do: Codec.decode(record.document, codec_opts())
+  def load(%Record{} = record), do: Codec.decode(upgrade_document(record.document), codec_opts())
 
   def export(definition), do: Codec.encode_json(definition, codec_opts())
 
@@ -58,14 +59,11 @@ defmodule Kura.Cell.Definition do
     with true <- Map.keys(source) -- @fields == [],
          true <- valid_name?(Map.get(source, "name", id)),
          true <- is_map(children) and Enum.all?(Map.keys(children), &valid_id?/1),
-         {:ok, data} <- profile(id, source, children),
+         data = profile(id, source, children),
          {:ok, vsm} <- vsm(source, id),
          {:ok, definition} <-
-           Agent.define(%{
-             vsm
-             | description: Map.get(source, "name", id),
-               plugins: vsm.plugins ++ [%{id: "kura/cell", vsn: 1, provider: Plugin, data: data}]
-           }),
+           Holon.define(%{vsm | description: Map.get(source, "name", id)}, data),
+         {:ok, _bindings} <- Bindings.resolve(data),
          {:ok, document} <- Codec.encode(definition, codec) do
       Enum.reduce_while(
         Enum.sort(children),
@@ -95,7 +93,7 @@ defmodule Kura.Cell.Definition do
       "cognition" => Map.get(source, "cognition", "local")
     }
 
-    data = %{
+    %{
       "role" => %{"text" => source["role"]},
       "capabilities" => Map.get(source, "capabilities", []),
       "signals" => Map.get(source, "signals", %{}),
@@ -105,8 +103,6 @@ defmodule Kura.Cell.Definition do
       "children" => Map.new(children, fn {slot, _} -> {slot, id <> "/" <> slot} end),
       "runtime" => runtime
     }
-
-    Plugin.normalize(data)
   end
 
   # Named topology profiles keep adapter code and grants under operator control.
@@ -119,6 +115,27 @@ defmodule Kura.Cell.Definition do
         {:error, {:unknown_vsm_profile, id}}
     end
   end
+
+  # Earlier definitions use the same profile under a different plugin ID.
+  defp upgrade_document(%{"definition" => %{"plugins" => plugins}} = document)
+       when is_list(plugins) do
+    put_in(document, ["definition", "plugins"], Enum.map(plugins, &upgrade_plugin/1))
+  end
+
+  defp upgrade_document(document), do: document
+
+  defp upgrade_plugin(
+         %{
+           "id" => id,
+           "vsn" => 1,
+           "provider" => %{"id" => id, "vsn" => 1} = provider
+         } = plugin
+       )
+       when id in ["kura/cell", "jido.work_cell/cell"] do
+    %{plugin | "id" => Plugin.id(), "provider" => %{provider | "id" => Plugin.id()}}
+  end
+
+  defp upgrade_plugin(plugin), do: plugin
 
   defp valid_name?(name),
     do: is_binary(name) and byte_size(name) <= 160 and String.trim(name) != ""

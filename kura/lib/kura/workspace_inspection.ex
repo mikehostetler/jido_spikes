@@ -1,6 +1,6 @@
 defmodule Kura.WorkspaceInspection do
   @moduledoc "Inspects the read-only workspace brief when a cell receives an inspect command."
-  @behaviour Kura.Cell.Pulse
+  @behaviour Jido.Holon.Pulse
 
   alias Kura.Cell.{Cognition, Control, Journal, Workspace, WorkspaceTool}
 

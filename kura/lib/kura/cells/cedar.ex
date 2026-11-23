@@ -1,6 +1,6 @@
 defmodule Kura.Cells.Cedar do
   require Kura.Cell.Control.Adapter
-  use Kura.Cell, name: "cedar", description: "Cedar"
+  use Jido.Holon, vsm: true, name: "cedar", description: "Cedar"
 
   def pulse_handlers do
     %{
@@ -14,14 +14,19 @@ defmodule Kura.Cells.Cedar do
 
   def playbook_tasks, do: %{"ci_triage" => Kura.Playbooks.Triage.registration()}
 
-  cell do
+  holon do
     role("cedar/ROLE.md")
     capabilities(["workspace_read", "digest", "ci_triage"])
     signals(%{"kura.workspace.inspect" => "inspect"})
     skills(["jido"])
-    memories(["Cedar has a nested Review cell with a separate workspace."])
+    memories(["Cedar assigns cases to three Review cells with separate workspaces."])
     playbooks(%{"inspect" => ["read_brief", "check_brief"]})
-    children(%{"review" => Kura.Cells.Inspector})
+
+    children(%{
+      "review" => Kura.Cells.Inspector,
+      "review-2" => Kura.Cells.Inspector,
+      "review-3" => Kura.Cells.Inspector
+    })
   end
 
   vsm do

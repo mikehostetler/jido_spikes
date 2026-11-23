@@ -10,7 +10,8 @@ defmodule Kura.Maintenance do
 
   @topic "maintenance"
   @cedar "cedar"
-  @review "cedar/review"
+  @workers ~w(cedar/review cedar/review-2 cedar/review-3)
+  @pool_size 10
   @steps ["failure", "new_head", "stale_pass", "pass"]
   alias Kura.Playbooks
   alias Kura.Playbooks.{Fixtures, Runner, Storage, Triage}
@@ -18,6 +19,34 @@ defmodule Kura.Maintenance do
   def start_link(_opts), do: GenServer.start_link(__MODULE__, nil, name: __MODULE__)
 
   def subscribe, do: Phoenix.PubSub.subscribe(Kura.PubSub, @topic)
+
+  def workers, do: @workers
+  def worker_id(%{state: state}), do: Map.get(state, "worker", @cedar)
+
+  def fetch(id) when is_binary(id) do
+    case Ecto.UUID.cast(id) do
+      {:ok, id} -> Ash.get!(MaintenanceCase, id, not_found_error?: false)
+      :error -> nil
+    end
+  end
+
+  def fetch(_), do: nil
+
+  def portfolio do
+    cases = Ash.read!(MaintenanceCase)
+
+    case Enum.max_by(Enum.filter(cases, & &1.state["pool_id"]), & &1.inserted_at, DateTime, fn ->
+           nil
+         end) do
+      nil ->
+        []
+
+      latest ->
+        cases
+        |> Enum.filter(&(&1.state["pool_id"] == latest.state["pool_id"]))
+        |> Enum.sort_by(& &1.state["slot"])
+    end
+  end
 
   def current do
     MaintenanceCase
@@ -28,30 +57,48 @@ defmodule Kura.Maintenance do
 
   def pending(nil), do: []
 
-  def pending(%{id: id, state: state}) do
+  def pending(%{id: id, state: state} = record) do
     completed =
       for %{"evidence" => %{"pulse_id" => id}} <- state["events"], into: MapSet.new(), do: id
 
     events =
-      for entry <- Inbox.scoped_events(@cedar, id), not MapSet.member?(completed, entry.id) do
+      for entry <- Inbox.scoped_events(worker_id(record), id),
+          not MapSet.member?(completed, entry.id) do
         %{"id" => entry.id, "type" => entry.kind, "payload" => entry.payload}
       end
 
     Enum.uniq_by(Map.get(state, "inbox", []) ++ events, & &1["id"])
   end
 
-  def next_fixture(nil), do: Fixtures.snapshot("failure")
+  def next_fixture(record), do: next_fixture(record, pending(record))
 
-  def next_fixture(%{state: state} = record) do
+  def next_fixture(nil, _pending), do: Fixtures.snapshot("failure")
+
+  def next_fixture(%{state: state}, pending) do
     cond do
-      pending(record) != [] -> nil
-      state["phase"] == "closed" -> Fixtures.snapshot("failure")
-      state["phase"] in ["waiting_review", "blocked"] -> nil
-      true -> Fixtures.snapshot(Enum.find(@steps, &(&1 not in state["fixtures"])))
+      pending != [] ->
+        nil
+
+      state["phase"] == "closed" and state["pool_id"] ->
+        nil
+
+      state["phase"] == "closed" ->
+        Fixtures.snapshot("failure")
+
+      state["phase"] in ["waiting_review", "blocked"] ->
+        nil
+
+      true ->
+        @steps
+        |> Enum.find(&(&1 not in state["fixtures"]))
+        |> Fixtures.snapshot(state["scope"])
     end
   end
 
-  def apply_fixture(id), do: GenServer.call(__MODULE__, {:fixture, id}, 10_000)
+  def apply_fixture(id, case_id \\ nil),
+    do: GenServer.call(__MODULE__, {:fixture, id, case_id}, 10_000)
+
+  def open_pool, do: GenServer.call(__MODULE__, :open_pool, 10_000)
 
   def commit_pulse(entry, result, trace) do
     GenServer.call(__MODULE__, {:commit_pulse, entry, result, trace}, 20_000)
@@ -60,19 +107,20 @@ defmodule Kura.Maintenance do
   @impl true
   def init(nil) do
     if Application.get_env(:kura, :recover_cells_on_boot, true) do
-      {:ok, nil, {:continue, :recover}}
+      {:ok, %{}, {:continue, :recover}}
     else
-      {:ok, nil}
+      {:ok, %{}}
     end
   end
 
   @impl true
   def handle_continue(:recover, state) do
-    record = recover_legacy_inbox(current())
+    for record <- Ash.read!(MaintenanceCase) do
+      record = recover_legacy_inbox(record)
+      schedule_review(record)
+      if pending(record) != [], do: wake_worker(record)
+    end
 
-    schedule_review(record)
-
-    if pending(record) != [], do: wake_cedar()
     {:noreply, state}
   end
 
@@ -86,18 +134,29 @@ defmodule Kura.Maintenance do
     do: Map.get(work, "review_requested", work["manual_review"] != true)
 
   @impl true
-  def handle_call({:fixture, id}, _from, state) do
-    record = current()
+  def handle_call(:open_pool, _from, state) do
+    result =
+      if Enum.any?(portfolio(), &(&1.state["phase"] != "closed" or pending(&1) != [])) do
+        {:error, :pool_already_open}
+      else
+        start_pool()
+      end
+
+    {:reply, result, state}
+  end
+
+  def handle_call({:fixture, id, case_id}, _from, state) do
+    record = if case_id, do: fetch(case_id), else: current()
 
     result =
-      case {id, next_fixture(record)} do
-        {"failure_sparse", %{"id" => "failure"}} ->
+      case {id, next_fixture(record), is_nil(case_id) or not is_nil(record)} do
+        {"failure_sparse", %{"id" => "failure"}, true} ->
           accept(record, Fixtures.sparse())
 
-        {^id, %{"id" => ^id} = snapshot} ->
+        {^id, %{"id" => ^id} = snapshot, true} ->
           accept(record, snapshot)
 
-        {"review_reply", _} ->
+        {"review_reply", _, true} ->
           request_manual_review(record)
 
         _ ->
@@ -139,35 +198,81 @@ defmodule Kura.Maintenance do
   defp schedule_review(_record, _delay), do: :ok
 
   @impl true
-  def handle_info({:dispatch_review, id}, state) do
-    case current() do
-      %{id: ^id, state: %{"phase" => "waiting_review", "playbook" => work}} = record ->
-        if review_requested?(work), do: dispatch_review(record, work)
+  def handle_info({:dispatch_review, id}, active) do
+    case fetch(id) do
+      %{state: %{"phase" => "waiting_review", "playbook" => work}} = record ->
+        {:noreply,
+         if(review_requested?(work), do: start_review(record, work, active), else: active)}
+
+      _ ->
+        {:noreply, active}
+    end
+  end
+
+  def handle_info({ref, result}, active) when is_reference(ref) and is_map_key(active, ref) do
+    Process.demonitor(ref, [:flush])
+    {:noreply, finish_review(ref, result, active)}
+  end
+
+  def handle_info({:DOWN, ref, :process, _pid, reason}, active) when is_map_key(active, ref) do
+    {:noreply, finish_review(ref, {:error, reason}, active)}
+  end
+
+  defp start_review(record, work, active) do
+    worker = review_worker(record)
+
+    case Enum.find(Map.values(active), fn {_id, assigned} -> assigned == worker end) do
+      {id, ^worker} when id == record.id ->
+        active
+
+      {_id, ^worker} ->
+        schedule_review(record, 200)
+        active
+
+      nil ->
+        [failure | _] = record.state["events"]
+        correlation = Map.take(work, ["run_id", "wait_id", "question"])
+
+        task =
+          Task.Supervisor.async_nolink(Kura.Maintenance.ReviewSupervisor, fn ->
+            Review.inspect_failure(@cedar, worker, record.id, failure["evidence"], correlation)
+          end)
+
+        Map.put(active, task.ref, {record.id, worker})
+    end
+  end
+
+  defp finish_review(ref, result, active) do
+    {{id, _worker}, active} = Map.pop!(active, ref)
+
+    case fetch(id) do
+      %{state: %{"phase" => "waiting_review", "playbook" => work, "original_head" => head}} =
+          record ->
+        case result do
+          {:ok, receipt, %{"head" => ^head} = reply} ->
+            case accept_review(record, work, reply, receipt) do
+              {:ok, _} -> :ok
+              {:error, reason} -> review_failed(record, work, reason)
+            end
+
+          {:ok, _, _} ->
+            review_failed(record, work, :unmatched_review_reply)
+
+          {:error, reason} ->
+            review_failed(record, work, reason)
+        end
 
       _ ->
         :ok
     end
 
-    {:noreply, state}
+    active
   end
 
-  defp dispatch_review(%{id: id, state: state} = record, work) do
-    [failure | _] = state["events"]
-    correlation = Map.take(work, ["run_id", "wait_id", "question"])
-
-    result =
-      with {:ok, cedar_receipt, %{"head" => head} = reply} <-
-             Review.inspect_failure(@cedar, @review, id, failure["evidence"], correlation),
-           true <- head == state["original_head"] do
-        accept_review(record, work, reply, cedar_receipt)
-      else
-        false -> {:error, :unmatched_review_reply}
-        {:error, _} = error -> error
-      end
-
-    case result do
-      {:ok, _} -> :ok
-      {:error, reason} -> review_failed(record, work, reason)
+  defp review_worker(record) do
+    case worker_id(record) do
+      @cedar -> hd(@workers)
+      worker -> worker
     end
   end
 
@@ -224,16 +329,56 @@ defmodule Kura.Maintenance do
 
   defp resume_review(state, _review), do: {:ok, state}
 
-  defp accept(_record, %{"id" => "failure", "head" => head} = snapshot) do
+  defp start_pool do
+    pool_id = Ash.UUID.generate()
+    version = version_id()
+
+    Repo.transact(fn ->
+      Enum.reduce_while(1..@pool_size, {:ok, []}, fn slot, {:ok, records} ->
+        worker = Enum.at(@workers, rem(slot - 1, length(@workers)))
+        scope = "#{pool_id}:#{slot}"
+
+        failure =
+          if slot <= length(@workers),
+            do: Fixtures.sparse(scope),
+            else: Fixtures.snapshot("failure", scope)
+
+        attrs = %{"pool_id" => pool_id, "slot" => slot, "worker" => worker, "scope" => scope}
+
+        case persist_and_enqueue(open_state(failure, version, attrs), nil, [
+               {"ci_snapshot", failure}
+             ]) do
+          {:ok, record} -> {:cont, {:ok, [record | records]}}
+          error -> {:halt, error}
+        end
+      end)
+    end)
+    |> case do
+      {:ok, records} ->
+        records |> Enum.uniq_by(&worker_id/1) |> Enum.each(&wake_worker/1)
+        notify({:ok, Enum.reverse(records)})
+
+      error ->
+        error
+    end
+  end
+
+  defp open_state(%{"head" => head} = snapshot, version, attrs) do
     %{
       "phase" => "waiting_ci",
       "original_head" => head,
       "current_head" => head,
       "fixtures" => ["failure"],
-      "triage_version" => version_id(),
+      "triage_version" => version,
       "events" => []
     }
+    |> Map.merge(attrs)
     |> add_event("CI", "CI failed on the original commit.", snapshot)
+  end
+
+  defp accept(_record, %{"id" => "failure"} = snapshot) do
+    snapshot
+    |> open_state(version_id(), %{})
     |> save_and_enqueue(nil, [{"ci_snapshot", snapshot}])
   end
 
@@ -289,8 +434,8 @@ defmodule Kura.Maintenance do
   end
 
   defp commit_queued_pulse(%{scope_id: case_id} = entry, result, trace) do
-    case current() do
-      %{id: ^case_id} = record ->
+    case fetch(case_id) do
+      %{} = record ->
         pulse = %{"id" => entry.id, "type" => entry.kind, "payload" => entry.payload}
 
         result =
@@ -347,9 +492,12 @@ defmodule Kura.Maintenance do
         end
 
       :learn ->
-        case tool_result(trace, "propose_playbook_edit") do
-          %{} = change -> {learn_method(state, case_id, pulse, change), result}
-          _ -> {state, result}
+        case trace do
+          %{"learning" => %{"change" => %{} = change} = learning} ->
+            {learn_method(state, case_id, pulse, change, learning), result}
+
+          _ ->
+            {state, result}
         end
 
       nil ->
@@ -365,6 +513,19 @@ defmodule Kura.Maintenance do
         "run_id" => run.id,
         "result" => Triage.result(run)
       }
+
+      work =
+        case version.evidence do
+          %{"source" => "tune", "pulse_id" => learning_id, "case_id" => learning_case} ->
+            Map.put(work, "learned_from", %{
+              "case_id" => learning_case,
+              "pulse_id" => learning_id,
+              "version_id" => version.id
+            })
+
+          _ ->
+            work
+        end
 
       case {run.status, Runner.open_wait(run)} do
         {:succeeded, nil} ->
@@ -402,15 +563,29 @@ defmodule Kura.Maintenance do
     |> add_event("Cedar", message, %{"error" => inspect(reason)})
   end
 
-  defp learn_method(state, case_id, pulse, change) do
-    evidence = %{"case_id" => case_id, "pulse_id" => pulse["id"]}
+  defp learn_method(state, case_id, pulse, change, learning) do
+    evidence =
+      learning
+      |> Map.take(["observations", "scores"])
+      |> Map.merge(%{"case_id" => case_id, "pulse_id" => pulse["id"], "source" => "tune"})
 
     with {:ok, version} <- Playbooks.get(@cedar, state["triage_version"]),
          {:ok, candidate} <- Playbooks.proposal(version, pulse["id"], evidence, change) do
-      add_event(state, "Cedar", "Saved a playbook candidate.", %{"candidate_id" => candidate.id})
+      state =
+        add_event(state, "Tune", "Saved a playbook candidate.", %{"candidate_id" => candidate.id})
+
+      case Playbooks.replay(@cedar, candidate.id) do
+        {:ok, _} ->
+          state
+
+        {:error, reason} ->
+          add_event(state, "Loom", "Could not replay the candidate on fixtures.", %{
+            "error" => inspect(reason)
+          })
+      end
     else
       error ->
-        add_event(state, "Cedar", "The playbook proposal was rejected.", %{
+        add_event(state, "Tune", "The playbook proposal was rejected.", %{
           "error" => inspect(error)
         })
     end
@@ -443,7 +618,7 @@ defmodule Kura.Maintenance do
 
   defp persist_and_enqueue(state, record, events) do
     with {:ok, saved} <- save(state, record),
-         :ok <- enqueue_events(saved.id, events) do
+         :ok <- enqueue_events(saved, events) do
       {:ok, saved}
     end
   end
@@ -452,7 +627,7 @@ defmodule Kura.Maintenance do
     result
     |> notify()
     |> tap(fn
-      {:ok, _} -> wake_cedar()
+      {:ok, record} -> wake_worker(record)
       _ -> :ok
     end)
   end
@@ -461,7 +636,7 @@ defmodule Kura.Maintenance do
     events = Enum.map(pulses, &{&1["type"], &1["payload"], &1["id"]})
 
     case Repo.transact(fn ->
-           with :ok <- enqueue_events(record.id, events),
+           with :ok <- enqueue_events(record, events),
                 do: save(Map.delete(record.state, "inbox"), record)
          end)
          |> notify() do
@@ -472,7 +647,7 @@ defmodule Kura.Maintenance do
 
   defp recover_legacy_inbox(record), do: record
 
-  defp enqueue_events(case_id, events) do
+  defp enqueue_events(record, events) do
     Enum.reduce_while(events, :ok, fn event, :ok ->
       {type, payload, id} =
         case event do
@@ -480,17 +655,19 @@ defmodule Kura.Maintenance do
           {type, payload, id} -> {type, payload, id}
         end
 
-      case Inbox.enqueue(@cedar, type, payload, scope_id: case_id, id: id) do
+      case Inbox.enqueue(worker_id(record), type, payload, scope_id: record.id, id: id) do
         {:ok, _} -> {:cont, :ok}
         {:error, _} = error -> {:halt, error}
       end
     end)
   end
 
-  defp wake_cedar do
-    case Kura.Cells.wake(@cedar) do
+  defp wake_worker(record) do
+    worker = worker_id(record)
+
+    case Kura.Cells.wake(worker) do
       :ok -> :ok
-      {:error, reason} -> Logger.warning("Could not wake Cedar: #{inspect(reason)}")
+      {:error, reason} -> Logger.warning("Could not wake #{worker}: #{inspect(reason)}")
     end
   end
 

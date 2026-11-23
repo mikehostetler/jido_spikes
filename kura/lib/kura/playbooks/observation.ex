@@ -1,6 +1,6 @@
 defmodule Kura.Playbooks.Observation do
   @moduledoc "Pine's task for recording a verified observation of its workspace."
-  @behaviour Kura.Cell.Pulse
+  @behaviour Jido.Holon.Pulse
 
   alias Jido.{Catalog, Codec}
   alias Jido.HTN.{CompoundTask, Domain, Method, PrimitiveTask}

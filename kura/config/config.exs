@@ -14,7 +14,8 @@ config :kura,
   generators: [timestamp_type: :utc_datetime]
 
 config :ash, default_string_length_count: :codepoints
-config :jido_loom, storage: Kura.Playbooks.Storage
+config :jido_praxis, Jido.Loom, storage: Kura.Playbooks.Storage
+config :kura, Kura.Repo, queue_target: 1_000
 
 # Configure the endpoint
 config :kura, KuraWeb.Endpoint,

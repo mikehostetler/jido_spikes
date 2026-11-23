@@ -25,7 +25,7 @@ defmodule Kura.Cell.Catalog do
 
   defp expand(id, parent, module) do
     definition = module.definition()
-    {:ok, profile} = Kura.Cell.profile(definition)
+    {:ok, profile} = Jido.Holon.profile(definition)
 
     cell =
       id
@@ -53,7 +53,7 @@ defmodule Kura.Cell.Catalog do
 
   defp load(record) do
     with {:ok, %{module: nil} = definition} <- Definition.load(record),
-         {:ok, %{"runtime" => runtime} = profile} <- Kura.Cell.profile(definition),
+         {:ok, %{"runtime" => runtime} = profile} <- Jido.Holon.profile(definition),
          {:ok, {handlers, tasks}} <- Bindings.resolve(profile) do
       {:ok,
        record.id

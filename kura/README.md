@@ -1,17 +1,21 @@
 # Kura
 
-Kura is a Phoenix spike for the Durable Work Cell in the Jido Work System.
+Kura is the Phoenix example app for `Jido.Holon` in [Jido Praxis](https://github.com/mikehostetler/jido_praxis).
+Praxis also supplies VSM for cell topology and HTN and Loom for playbooks.
+The library owns the definition DSL, durable inbox runner, and bounded
+ReAct turn. Kura supplies Ash and SQLite storage, local workspaces, the
+dashboard, and the Cedar and Pine demo workflows.
 Open [Work cells](http://127.0.0.1:4000/cells) to inspect a workspace, ask a
 cell about its work, or save a memory.
 
 ## Run locally
 
-Use Elixir 1.19 or later, a sibling Jido workspace checkout at
-`../../jido_workspace/jido_workspace`, and GitHub SSH access to
-`mikehostetler/jido_vsm`. Jido and AshJido use their V3 release branches.
-The lock file records their exact revisions and the pinned VSM revision.
-Keep the sibling Loom and HTN checkouts in the Jido workspace. HTN must
-include its Catalog-backed domain codec.
+Use Elixir 1.19 or later. Kura needs local checkouts at
+`../../jido_workflow/jido_praxis` and `../../jido_workspace/jido_workspace`.
+Mix needs GitHub SSH access to the private Tune repository. Jido and AshJido use their V3 release
+branches. The lock file records their exact revisions. Praxis includes VSM,
+HTN, and Loom. The built-in cells use `vsm: true` for their existing VSM
+topology at the root.
 
 ```sh
 mix setup
@@ -24,20 +28,32 @@ workspaces use separate directories under `db/workspaces`.
 
 ## Run the local maintenance case
 
+Select **Load 10 fixture cases** in the Maintenance dashboard to open a
+portfolio. Cedar assigns the cases across three child Holons in groups of
+four, three, and three. The first three cases wait for Review. Other cases
+can advance independently. Select a case to see its CI history, assigned
+worker, and playbook run. SQLite holds each assignment and pending pulse.
+
 Run `mix ecto.migrate` if you already have a development database. Open
 [Maintenance](http://127.0.0.1:4000/maintenance) and load the failed CI
 fixture. Set `KURA_CELL_MODEL=openai:gpt-6.1-terra` and supply
 `OPENAI_API_KEY` when you start Phoenix to give Cedar a ReAct turn when
-CI reports a result, when Review replies, and when a case closes. Cedar
+CI reports a result and when Review replies. Cedar
 can call `use_playbook` to select the approved CI triage playbook.
 Without a model, the local demo selects the approved playbook automatically.
 
 For a learning run, start with the detailed failed CI fixture. Version 1
 asks Review even when CI has the assertion. Complete the case. At closure,
-Cedar can call `propose_playbook_edit` to propose a new HTN method condition.
-Use **Replay fixtures** to compare the candidate with its baseline, then
-**Approve** to activate a passing candidate. Select **Load detailed CI failure**
-to see the new method use CI evidence. Select **Load CI failure summary** to see
+Cedar's pulse reads its saved CI and Review entries. If Review repeated a
+finding already present in CI, Tune scores the current HTN and a variant
+that asks Review only for missing details. Cedar saves a winning variant
+in SQLite and checks it with Loom on both fixtures. This learning turn
+works offline.
+
+In **What Cedar learned**, inspect the scores and source pulses. Select
+**Approve** to activate the passing version. Select **Load detailed CI
+failure** to start a later case. The run shows the learned version and uses
+CI evidence directly. Select **Load CI failure summary** on a new case to see
 Loom ask Review for the missing assertion. Restart Phoenix while it waits,
 then select **Deliver Review reply** to resolve that same wait.
 
@@ -68,7 +84,7 @@ to read the workspace and save a template-based HTN draft. Select **Replay
 fixture**, then **Approve**. Select **Run approved playbook** to record the
 digest of the current brief using that saved version.
 
-A cell module maps event kinds to handlers with `pulse_handlers/0`. Each
+A module that uses `Jido.Holon` maps event kinds to handlers with `pulse_handlers/0`. Each
 handler supplies the prompt, evidence, and tools for its task. A cell can
 declare playbook tasks with `playbook_tasks/0`. A task supplies its trigger,
 input validation, trusted action references, and fixture replay. The Cell
@@ -110,7 +126,7 @@ slot. [`Kura.Cells.Inspector`](lib/kura/cells/inspector.ex) runs as both
   instance mounts its own local directory with a read-only Jido Workspace
   policy. The spike supplies one inspection playbook.
 - **Definition** includes a `ROLE.md` reference, skill names, signal bindings,
-  seed memories, playbook steps, and child slots. `cell do` and the native
+  seed memories, playbook steps, and child slots. `holon do` and the native
   `vsm do` contribute to the same Jido Agent definition.
 - **Data** includes workspace files, commands and outcomes, chat turns, and
   operator notes. Ash stores the journal in SQLite using the cell ID.
@@ -169,7 +185,7 @@ it with Jido Codec from a running IEx session.
 ```elixir
 {:ok, json} = Kura.Cells.export_definition("cedar")
 {:ok, definition} = Jido.Codec.decode_json(json, codec: Jido.Agent.Codec)
-{:ok, profile} = Kura.Cell.profile(definition)
+{:ok, profile} = Jido.Holon.profile(definition)
 ```
 
 The document holds the canonical Agent definition. An imported definition

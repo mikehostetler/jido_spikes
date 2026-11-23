@@ -1,6 +1,6 @@
 defmodule Kura.Cells.Pine do
   require Kura.Cell.Control.Adapter
-  use Kura.Cell, name: "pine", description: "Workspace inspector"
+  use Jido.Holon, vsm: true, name: "pine", description: "Workspace inspector"
 
   alias Kura.Playbooks.Observation
 
@@ -10,7 +10,7 @@ defmodule Kura.Cells.Pine do
 
   def playbook_tasks, do: %{"record_observation" => Observation.registration()}
 
-  cell do
+  holon do
     role("inspector/ROLE.md")
     capabilities(["workspace_read", "digest"])
 

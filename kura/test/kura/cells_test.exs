@@ -2,7 +2,7 @@ defmodule Kura.CellsTest do
   use Kura.DataCase, async: false
 
   alias Jido.Signal.Bus
-  alias Kura.Cell.{Control, Inbox, Runtime}
+  alias Kura.Cell.{Control, Host, Inbox}
   alias Kura.Cells
 
   @tag :tmp_dir
@@ -112,14 +112,14 @@ defmodule Kura.CellsTest do
 
     assert {:ok, queued} = Inbox.enqueue(cell.id, "paused", %{}, channel: "command")
     id = queued.id
-    assert {:ok, worker} = Runtime.ensure(cell)
+    assert {:ok, worker} = Jido.Holon.activate(cell, Host.options())
     assert_receive {:pulse_started, attempt, ^id}, 2_000
     monitor = Process.monitor(attempt)
     assert :ok = DynamicSupervisor.terminate_child(Kura.Cell.Supervisor, worker)
     assert_receive {:DOWN, ^monitor, :process, ^attempt, _}
     assert %{id: ^id} = Inbox.next(cell.id)
 
-    assert {:ok, replacement} = Runtime.ensure(cell)
+    assert {:ok, replacement} = Jido.Holon.activate(cell, Host.options())
     assert_receive {:pulse_started, ^replacement, ^id}, 2_000
     send(replacement, :finish)
 
@@ -140,7 +140,7 @@ defmodule Kura.CellsTest do
               "skills" => ["jido"],
               "children" => %{"review" => Kura.Cells.Inspector},
               "playbooks" => %{"inspect" => ["read_brief", "check_brief"]}
-            }} = Kura.Cell.profile(decoded)
+            }} = Jido.Holon.profile(decoded)
   end
 
   defp await_work(cell, id) do

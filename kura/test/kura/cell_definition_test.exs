@@ -2,7 +2,7 @@ defmodule Kura.CellDefinitionTest do
   use Kura.DataCase, async: false
 
   alias Kura.{Cells, Playbooks}
-  alias Kura.Cell.{Control, Inbox, References}
+  alias Kura.Cell.{Control, Definition, Inbox, References}
 
   @parent "pine-data"
   @child "pine-data/check"
@@ -42,7 +42,7 @@ defmodule Kura.CellDefinitionTest do
     assert decoded == parent.definition
 
     assert {:ok, %{"children" => %{"check" => @child}, "runtime" => runtime}} =
-             Kura.Cell.profile(decoded)
+             Jido.Holon.profile(decoded)
 
     assert runtime["handlers"]["inspect"] == "workspace.inspect@1"
 
@@ -98,6 +98,27 @@ defmodule Kura.CellDefinitionTest do
 
     assert {:ok, @parent} = Cells.import_definition(example())
     assert {:error, {:cell_already_exists, @parent}} = Cells.import_definition(example())
+  end
+
+  test "loads saved definitions that use either earlier plugin ID" do
+    assert {:ok, @parent} = Cells.import_definition(example())
+    stored = Definition.fetch(@parent)
+    document = JSON.encode!(stored.document)
+    assert document =~ "jido.holon"
+
+    for id <- ["kura/cell", "jido.work_cell/cell"] do
+      legacy =
+        document
+        |> String.replace("jido.holon", id)
+        |> JSON.decode!()
+
+      Kura.Repo.update!(Ecto.Changeset.change(stored, document: legacy))
+
+      assert {:ok, legacy_cell} = Cells.fetch(@parent)
+      assert {:ok, %{"role" => %{"text" => _}}} = Jido.Holon.profile(legacy_cell.definition)
+      assert {:ok, exported} = Cells.export_definition(@parent)
+      assert exported =~ "jido.holon"
+    end
   end
 
   defp example do

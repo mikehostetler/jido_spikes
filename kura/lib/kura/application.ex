@@ -18,6 +18,7 @@ defmodule Kura.Application do
         Kura.Jido,
         {Registry, keys: :unique, name: Kura.Cell.Registry},
         {DynamicSupervisor, strategy: :one_for_one, name: Kura.Cell.Supervisor},
+        {Task.Supervisor, name: Kura.Maintenance.ReviewSupervisor},
         Kura.Maintenance
       ] ++
         recovery_children() ++

@@ -1,0 +1,21 @@
+#!/bin/sh
+set -eu
+
+spike_dir=$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)
+if [ "${1:-}" = vault ]; then
+  shift
+  cd "$spike_dir"
+  export MIX_ENV=cli ERL_CRASH_DUMP_SECONDS=0
+  ulimit -c 0
+  exec mix run cli/run.exs "$@"
+fi
+
+connect_dir="$spike_dir/../../jido_connect/jido_connect"
+
+if [ ! -f "$connect_dir/mix.exs" ]; then
+  echo "Cannot find the sibling Jido Connect checkout." >&2
+  exit 1
+fi
+
+cd "$connect_dir"
+exec mix run "$spike_dir/run.exs" "$@"
